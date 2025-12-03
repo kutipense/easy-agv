@@ -4,13 +4,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // 1. Create your main module
     const mod = b.addModule("open_l5", .{
         .root_source_file = b.path("src/root.zig"),
         .target = target,
     });
 
-    // 2. Define the Executable
     const exe = b.addExecutable(.{
         .name = "open_l5",
         .root_module = b.createModule(.{
@@ -23,7 +21,6 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    // --- Dependencies (kept from your snippet) ---
     // webui
     const zig_webui = b.dependency("zig_webui", .{
         .target = target,
@@ -81,38 +78,26 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_exe_tests.step);
 }
 
-// Function returns a LazyPath. This is the "future" path of the compiled object.
 fn compileCuda(b: *std.Build, optimize: std.builtin.OptimizeMode) struct { *std.Build.Step, std.Build.LazyPath } {
     const source_path = b.path(b.pathJoin(&.{ "src", "cuda", "add.cu" }));
 
-    // 1. Detect GPU Architecture (Config time)
-    // We wrap this in a catch so the build doesn't crash on non-NVIDIA machines.
-    // Ideally, this should be a `b.option` passed by the user like -Dgpu_arch=sm_80
     const gpu_arch_str = getGpuArch(b) catch "75";
 
-    // 2. Setup NVCC command
     const nvcc = b.addSystemCommand(&.{"nvcc"});
 
-    // Input file
     nvcc.addArg("-c");
     nvcc.addFileArg(source_path);
 
-    // Optimization flags based on Zig build mode
     switch (optimize) {
         .Debug => nvcc.addArg("-G"), // CUDA Debug symbols
         else => nvcc.addArg("-O3"),
     }
 
-    // Architecture flag
     nvcc.addArg(b.fmt("-arch=sm_{s}", .{gpu_arch_str}));
 
-    // Compiler options
     nvcc.addArg("--compiler-options");
     nvcc.addArg("-fPIC");
 
-    // 3. Define the Output
-    // This is the magic part. We tell Zig: "Expect this command to output a file named cuda.o".
-    // Zig will append `-o /path/to/cache/cuda.o` to the command automatically.
     nvcc.addArg("-o");
     const output_file = nvcc.addOutputFileArg("cuda.o");
 
@@ -120,7 +105,6 @@ fn compileCuda(b: *std.Build, optimize: std.builtin.OptimizeMode) struct { *std.
 }
 
 fn getGpuArch(b: *std.Build) ![]const u8 {
-    // Attempt to run nvidia-smi
     const result = std.process.Child.run(.{
         .allocator = b.allocator,
         .argv = &.{ "nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader" },
