@@ -1,6 +1,11 @@
 const webui = @import("webui");
 const std = @import("std");
 const zalgebra = @import("zalgebra");
+const xev = @import("xev");
+
+const Rate = @import("utils/rate.zig").Rate;
+
+// const navigation = @import("navigation/navigation.zig");
 
 const html_file = @embedFile("gui/html/index.html");
 
@@ -46,6 +51,36 @@ export fn add(a: i32, b: i32) i32 {
 }
 
 pub fn main() !void {
+    var loop = try xev.Loop.init(.{});
+    defer loop.deinit();
+
+    const w = try xev.Timer.init();
+    defer w.deinit();
+
+    var rate = try Rate.init(1);
+
+    // std.Thread.sleep(std.time.ns_per_s * 3);
+
+    rate.sleep();
+    std.debug.print("helo\n\n", .{});
+
+    rate.sleep();
+    std.debug.print("helo\n\n", .{});
+
+    std.Thread.sleep(std.time.ns_per_s * 1.5);
+
+    rate.sleep();
+    std.debug.print("helo\n\n", .{});
+
+    rate.sleep();
+    std.debug.print("helo\n\n", .{});
+
+    // 5s timer
+    var c: xev.Completion = undefined;
+    w.run(&loop, &c, 5000, void, null, &timerCallback);
+
+    try loop.run(.until_done);
+
     const result = add(12, 12);
 
     std.debug.print("result: {d}\n\n", .{result});
@@ -69,4 +104,17 @@ pub fn main() !void {
     webui.wait();
 
     // webui.clean();
+}
+
+fn timerCallback(
+    userdata: ?*void,
+    loop: *xev.Loop,
+    c: *xev.Completion,
+    result: xev.Timer.RunError!void,
+) xev.CallbackAction {
+    _ = userdata;
+    _ = loop;
+    _ = c;
+    _ = result catch unreachable;
+    return .disarm;
 }

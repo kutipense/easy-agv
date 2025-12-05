@@ -40,6 +40,10 @@
             .url = "https://github.com/kooparse/zalgebra/archive/main.tar.gz",
             .hash = "zalgebra-0.0.0-aaiVSrh2AQAo163qnzoq8qsxxuEYQ8_WxAi1WxKvVjoG",
         },
+        .libxev = .{
+            .url = "https://github.com/mitchellh/libxev/archive/main.tar.gz",
+            .hash = "libxev-0.0.0-86vtcz8bEwB9PLXxMMckZwulRxoKleuLsrffobuUv993",
+        },
     },
     .paths = .{
         "build.zig",

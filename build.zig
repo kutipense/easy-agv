@@ -37,6 +37,13 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("zalgebra", zalgebra.module("zalgebra"));
 
+    // libxev
+    const xev = b.dependency("libxev", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.root_module.addImport("xev", xev.module("xev"));
+
     // cuda
     const cuda_obj = compileCuda(b, optimize);
 
