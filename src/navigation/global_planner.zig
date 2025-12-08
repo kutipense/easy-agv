@@ -12,10 +12,23 @@ const Pose = geometry_types.Pose;
 const Plan = navigation_types.Plan;
 
 pub const GlobalPlanner = struct {
-    pub fn get_path(self: *GlobalPlanner, costmap: Map2D(u8), start_pose: Pose, end_pose: Pose) NavigationError!Plan {
+    pub fn get_path(
+        self: *GlobalPlanner,
+        costmap: Map2D(u8),
+        start_pose: Pose,
+        end_pose: Pose,
+    ) NavigationError!Plan {
         _ = start_pose;
         _ = end_pose;
         _ = costmap;
         _ = self;
+
+        const vec: [1]geometry_types.Vec3(f32) = .{
+            .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+        };
+
+        const max_vel: [1]f32 = .{0};
+
+        return Plan{ .length_m = 0, .max_vel = &max_vel, .path = &vec };
     }
 };

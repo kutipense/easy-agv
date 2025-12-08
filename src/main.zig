@@ -5,7 +5,7 @@ const xev = @import("xev");
 
 const Rate = @import("utils/rate.zig").Rate;
 
-// const navigation = @import("navigation/navigation.zig");
+const navigation = @import("navigation/navigation.zig");
 
 const html_file = @embedFile("gui/html/index.html");
 
@@ -51,57 +51,63 @@ export fn add(a: i32, b: i32) i32 {
 }
 
 pub fn main() !void {
-    var loop = try xev.Loop.init(.{});
-    defer loop.deinit();
+    var nav = navigation.Navigation{};
+    try nav.init();
 
-    const w = try xev.Timer.init();
-    defer w.deinit();
+    // var loop = try xev.Loop.init(.{});
+    // defer loop.deinit();
 
-    var rate = try Rate.init(1);
+    // const w = try xev.Timer.init();
+    // defer w.deinit();
 
-    // std.Thread.sleep(std.time.ns_per_s * 3);
+    // var rate = try Rate.init(1);
 
-    rate.sleep();
-    std.debug.print("helo\n\n", .{});
+    // // std.Thread.sleep(std.time.ns_per_s * 3);
 
-    rate.sleep();
-    std.debug.print("helo\n\n", .{});
+    // rate.sleep();
+    // std.debug.print("helo\n\n", .{});
+
+    // rate.sleep();
+    // std.debug.print("helo\n\n", .{});
 
     std.Thread.sleep(std.time.ns_per_s * 1.5);
 
-    rate.sleep();
-    std.debug.print("helo\n\n", .{});
+    nav.set_target(.Zero());
 
-    rate.sleep();
-    std.debug.print("helo\n\n", .{});
+    nav.global_thread.?.join();
+    // rate.sleep();
+    // std.debug.print("helo\n\n", .{});
 
-    // 5s timer
-    var c: xev.Completion = undefined;
-    w.run(&loop, &c, 5000, void, null, &timerCallback);
+    // rate.sleep();
+    // std.debug.print("helo\n\n", .{});
 
-    try loop.run(.until_done);
+    // // 5s timer
+    // var c: xev.Completion = undefined;
+    // w.run(&loop, &c, 5000, void, null, &timerCallback);
 
-    const result = add(12, 12);
+    // try loop.run(.until_done);
 
-    std.debug.print("result: {d}\n\n", .{result});
+    // const result = add(12, 12);
 
-    var nwin = webui.newWindow();
+    // std.debug.print("result: {d}\n\n", .{result});
 
-    nwin.setCloseHandlerWv(always_true);
+    // var nwin = webui.newWindow();
 
-    _ = try nwin.bind("close_window", close_window);
+    // nwin.setCloseHandlerWv(always_true);
 
-    nwin.setSize(1920, 1080);
-    nwin.setPosition((3840 - 1920) / 2, (2160 - 1080) / 2);
-    nwin.setFrameless(true);
-    // nwin.setTransparent(true);
-    nwin.setResizable(true);
+    // _ = try nwin.bind("close_window", close_window);
 
-    // show the content
+    // nwin.setSize(1920, 1080);
+    // nwin.setPosition((3840 - 1920) / 2, (2160 - 1080) / 2);
     // nwin.setFrameless(true);
-    try nwin.showWv(html_file);
+    // // nwin.setTransparent(true);
+    // nwin.setResizable(true);
 
-    webui.wait();
+    // // show the content
+    // // nwin.setFrameless(true);
+    // try nwin.showWv(html_file);
+
+    // webui.wait();
 
     // webui.clean();
 }
