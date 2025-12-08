@@ -13,6 +13,10 @@ const Pose = geometry_types.Pose;
 pub const LocalPlanner = struct {
     goal: ?NavigationGoal,
 
+    pub fn init() LocalPlanner {
+        return .{ .goal = null };
+    }
+
     pub fn step(self: *LocalPlanner, pose: Pose, costmap: Map2D(u8)) NavigationError!VelocityCommand {
         _ = pose;
         _ = costmap;

@@ -12,6 +12,10 @@ const Pose = geometry_types.Pose;
 const Plan = navigation_types.Plan;
 
 pub const GlobalPlanner = struct {
+    pub fn init() GlobalPlanner {
+        return .{};
+    }
+
     pub fn get_path(
         self: *GlobalPlanner,
         costmap: Map2D(u8),

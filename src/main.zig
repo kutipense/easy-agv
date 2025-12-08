@@ -51,8 +51,9 @@ export fn add(a: i32, b: i32) i32 {
 }
 
 pub fn main() !void {
-    var nav = navigation.Navigation{};
-    try nav.init();
+    var nav = navigation.Navigation.init();
+
+    try nav.start();
 
     // var loop = try xev.Loop.init(.{});
     // defer loop.deinit();
@@ -74,7 +75,13 @@ pub fn main() !void {
 
     nav.set_target(.Zero());
 
-    nav.global_thread.?.join();
+    std.Thread.sleep(std.time.ns_per_s * 5);
+    nav.abort();
+
+    std.Thread.sleep(std.time.ns_per_s * 5);
+    nav.set_target(.Zero());
+
+    nav.global_plan_thread.?.join();
     // rate.sleep();
     // std.debug.print("helo\n\n", .{});
 

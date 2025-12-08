@@ -4,11 +4,9 @@ pub const Rate = struct {
     target_ns: u64,
     last_time: ?i128,
 
-    pub fn init(frequency: f64) !Rate {
-        if (frequency <= 0) return error.InvalidFrequency;
-
+    pub fn init(sleep_ns: u64) Rate {
         return Rate{
-            .target_ns = @intFromFloat(@as(f64, std.time.ns_per_s) / frequency),
+            .target_ns = sleep_ns,
             .last_time = null,
         };
     }

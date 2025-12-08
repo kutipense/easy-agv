@@ -23,6 +23,10 @@ pub const NavigationStatus = enum(u8) {
 fn request_recovery() void {}
 
 const Localization = struct {
+    pub fn init() Localization {
+        return .{};
+    }
+
     pub fn get_pose(self: *Localization) Pose {
         _ = self;
         return Pose.Zero();
@@ -30,31 +34,47 @@ const Localization = struct {
 };
 
 pub const Navigation = struct {
-    path_update_tolerance: u32 = 1,
-
     // controller: anyopaque,
 
-    localization: Localization = .{},
+    localization: Localization,
 
-    costmap: Costmap = .{},
-    global_planner: GlobalPlanner = .{},
-    // local_planner: LocalPlanner = .{ .goal = .{} },
-    global_thread: ?std.Thread = null,
+    costmap: Costmap,
+    global_planner: GlobalPlanner,
+    local_planner: LocalPlanner,
 
-    latest_plan: ?Plan = null,
-    global_plan_mtx: std.Thread.Mutex = .{},
+    status: std.atomic.Value(NavigationStatus),
+    latest_plan: ?Plan,
+    target: ?Pose,
 
-    target: ?Pose = null,
+    global_plan_thread: ?std.Thread,
+    global_plan_mtx: std.Thread.Mutex,
+    global_plan_loop_mtx: std.Thread.Mutex,
+    global_plan_loop_cond: std.Thread.Condition,
 
-    global_plan_loop_mtx: std.Thread.Mutex = .{},
-    global_plan_loop_cond: std.Thread.Condition = .{},
-    status: std.atomic.Value(NavigationStatus) = .{ .raw = .WAITING },
+    pub fn init() Navigation {
+        return .{
+            .costmap = Costmap.init(),
+            .localization = Localization.init(),
+            .global_planner = GlobalPlanner.init(),
+            .local_planner = LocalPlanner.init(),
+
+            .status = std.atomic.Value(NavigationStatus).init(.WAITING),
+            .latest_plan = null,
+            .target = null,
+
+            .global_plan_thread = null,
+            .global_plan_mtx = .{},
+            .global_plan_loop_mtx = .{},
+            .global_plan_loop_cond = .{},
+        };
+    }
 
     // TODO init returns the struct, no default
-    pub fn init(self: *Navigation) !void {
-        self.status = std.atomic.Value(NavigationStatus).init(.WAITING);
+    pub fn start(self: *Navigation) !void {
+        if (self.global_plan_thread != null) return error.AlreadyStarted;
 
-        self.global_thread = try std.Thread.spawn(.{}, Navigation.global_loop, .{self});
+        self.status = std.atomic.Value(NavigationStatus).init(.WAITING);
+        self.global_plan_thread = try std.Thread.spawn(.{}, Navigation.global_loop, .{self});
     }
 
     pub fn deinit(self: *Navigation) void {
@@ -64,9 +84,9 @@ pub const Navigation = struct {
         self.global_thread.join();
     }
 
-    pub fn global_loop(self: *Navigation) !void {
+    pub fn global_loop(self: *Navigation) void {
         while (self.status.load(.acquire) != .STOPPED) {
-            std.debug.print("starting to the  global loop\n", .{});
+            std.debug.print("\n\nstarting to the  global loop\n", .{});
             self.global_plan_loop_mtx.lock();
 
             while (self.target == null and self.status.load(.acquire) == .WAITING) {
@@ -74,15 +94,18 @@ pub const Navigation = struct {
                 self.global_plan_loop_cond.wait(&self.global_plan_loop_mtx);
             }
 
-            if (self.status.load(.acquire) == .STOPPED) break;
+            if (self.status.load(.acquire) == .STOPPED) {
+                self.global_plan_loop_mtx.unlock();
+                break;
+            }
 
             const target = self.target.?;
             self.target = null;
             self.status.store(.RUNNING, .release);
             self.global_plan_loop_mtx.unlock();
-            std.debug.print("target acquired\n", .{});
+            std.debug.print("\ntarget acquired\n", .{});
 
-            var rate = try Rate.init(1);
+            var rate = Rate.init(std.time.ns_per_s * 2);
             while (self.status.load(.acquire) == .RUNNING) {
                 if (self.costmap.global_costmap()) |costmap| {
                     std.debug.print("costmap acquired\n", .{});
@@ -121,13 +144,17 @@ pub const Navigation = struct {
         }
     }
 
-    pub fn set_target(self: *Navigation, target: Pose) void {
+    pub fn set_target(self: *Navigation, target: ?Pose) void {
         self.status.store(.WAITING, .release);
 
         self.global_plan_loop_mtx.lock();
         self.target = target;
         self.global_plan_loop_cond.signal();
         self.global_plan_loop_mtx.unlock();
+    }
+
+    pub fn abort(self: *Navigation) void {
+        self.set_target(null);
     }
 
     // fn global_planner_step(self: *Navigation, goal: Pose) void {
