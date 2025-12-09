@@ -80,8 +80,7 @@ pub const Navigation = struct {
     }
 
     pub fn global_loop(self: *Navigation) void {
-        var target: ?*Pose = null;
-        defer if (target) |t| self.allocator.destroy(t);
+        var target: ?Pose = null;
         defer if (self.new_plan.load(.acquire)) |p| self.allocator.destroy(p); // won't work
 
         var rate = Rate.init(std.time.ns_per_s * 2);
@@ -92,8 +91,8 @@ pub const Navigation = struct {
             if (self.status.load(.acquire) != .RUNNING) continue;
 
             if (self.new_target.swap(null, .acq_rel)) |nt| {
-                if (target) |t| self.allocator.destroy(t);
-                target = nt;
+                target = nt.*;
+                self.allocator.destroy(nt);
                 std.debug.print("new target acquired\n", .{});
             }
 
@@ -105,7 +104,7 @@ pub const Navigation = struct {
             std.debug.print("costmap acquired\n", .{});
             const pose = self.localization.get_pose();
 
-            const plan_ptr: ?*Plan = self.global_planner.get_path(costmap, pose, target.?.*) catch |err| {
+            const plan_ptr: ?*Plan = self.global_planner.get_path(costmap, pose, target.?) catch |err| {
                 std.debug.print("target error\n", .{});
                 switch (err) {
                     error.PATH_BLOCKED => {

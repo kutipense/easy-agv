@@ -92,7 +92,9 @@ pub fn main() !void {
     std.Thread.sleep(std.time.ns_per_s * 5);
 
     // nav.cancel();
-    // nav.set_target(pose0);
+    nav.set_target(pose0);
+
+    std.Thread.sleep(std.time.ns_per_s * 2);
 
     // rate.sleep();
     // std.debug.print("helo\n\n", .{});
