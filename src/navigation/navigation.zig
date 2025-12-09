@@ -75,10 +75,8 @@ pub const Navigation = struct {
     }
 
     pub fn deinit(self: *Navigation) void {
-        self.status.store(.STOPPED, .acquire);
-
-        self.global_plan_loop_cond.signal();
-        self.global_thread.join();
+        self.status.store(.STOPPED, .release);
+        if (self.global_plan_thread) |t| t.join();
     }
 
     pub fn global_loop(self: *Navigation) void {

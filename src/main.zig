@@ -58,6 +58,7 @@ pub fn main() !void {
     var nav = navigation.Navigation.init(allocator);
 
     try nav.start();
+    defer nav.deinit();
 
     // var loop = try xev.Loop.init(.{});
     // defer loop.deinit();
@@ -90,10 +91,9 @@ pub fn main() !void {
 
     std.Thread.sleep(std.time.ns_per_s * 5);
 
-    nav.cancel();
+    // nav.cancel();
     // nav.set_target(pose0);
 
-    nav.global_plan_thread.?.join();
     // rate.sleep();
     // std.debug.print("helo\n\n", .{});
 
