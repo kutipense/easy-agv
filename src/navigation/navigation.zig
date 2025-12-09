@@ -36,36 +36,33 @@ const Localization = struct {
 pub const Navigation = struct {
     // controller: anyopaque,
 
-    localization: Localization,
+    allocator: std.mem.Allocator,
 
     costmap: Costmap,
+    localization: Localization,
     global_planner: GlobalPlanner,
     local_planner: LocalPlanner,
 
     status: std.atomic.Value(NavigationStatus),
-    latest_plan: ?Plan,
-    target: ?Pose,
+    new_plan: std.atomic.Value(?*Plan),
+    new_target: std.atomic.Value(?*Pose),
 
     global_plan_thread: ?std.Thread,
-    global_plan_mtx: std.Thread.Mutex,
-    global_plan_loop_mtx: std.Thread.Mutex,
-    global_plan_loop_cond: std.Thread.Condition,
 
-    pub fn init() Navigation {
+    pub fn init(allocator: std.mem.Allocator) Navigation {
         return .{
+            .allocator = allocator,
+
             .costmap = Costmap.init(),
             .localization = Localization.init(),
-            .global_planner = GlobalPlanner.init(),
+            .global_planner = GlobalPlanner.init(allocator),
             .local_planner = LocalPlanner.init(),
 
             .status = std.atomic.Value(NavigationStatus).init(.WAITING),
-            .latest_plan = null,
-            .target = null,
+            .new_plan = std.atomic.Value(?*Plan).init(null),
+            .new_target = std.atomic.Value(?*Pose).init(null),
 
             .global_plan_thread = null,
-            .global_plan_mtx = .{},
-            .global_plan_loop_mtx = .{},
-            .global_plan_loop_cond = .{},
         };
     }
 
@@ -85,76 +82,71 @@ pub const Navigation = struct {
     }
 
     pub fn global_loop(self: *Navigation) void {
+        var target: ?*Pose = null;
+        defer if (target) |t| self.allocator.destroy(t);
+        defer if (self.new_plan.load(.acquire)) |p| self.allocator.destroy(p); // won't work
+
+        var rate = Rate.init(std.time.ns_per_s * 2);
         while (self.status.load(.acquire) != .STOPPED) {
-            std.debug.print("\n\nstarting to the  global loop\n", .{});
-            self.global_plan_loop_mtx.lock();
+            std.debug.print("sleeping for the next global plan\n", .{});
+            rate.sleep();
 
-            while (self.target == null and self.status.load(.acquire) == .WAITING) {
-                std.debug.print("waiting for a target\n", .{});
-                self.global_plan_loop_cond.wait(&self.global_plan_loop_mtx);
+            if (self.status.load(.acquire) != .RUNNING) continue;
+
+            if (self.new_target.swap(null, .acq_rel)) |nt| {
+                if (target) |t| self.allocator.destroy(t);
+                target = nt;
+                std.debug.print("new target acquired\n", .{});
             }
 
-            if (self.status.load(.acquire) == .STOPPED) {
-                self.global_plan_loop_mtx.unlock();
-                break;
-            }
+            const costmap = self.costmap.global_costmap() catch |err| {
+                std.debug.print("can't get the global costmap: {s}\n", .{@errorName(err)});
+                continue;
+            };
 
-            const target = self.target.?;
-            self.target = null;
-            self.status.store(.RUNNING, .release);
-            self.global_plan_loop_mtx.unlock();
-            std.debug.print("\ntarget acquired\n", .{});
+            std.debug.print("costmap acquired\n", .{});
+            const pose = self.localization.get_pose();
 
-            var rate = Rate.init(std.time.ns_per_s * 2);
-            while (self.status.load(.acquire) == .RUNNING) {
-                if (self.costmap.global_costmap()) |costmap| {
-                    std.debug.print("costmap acquired\n", .{});
-                    const pose = self.localization.get_pose();
-                    if (self.global_planner.get_path(costmap, pose, target)) |plan| {
-                        std.debug.print("path acquired\n", .{});
-
-                        self.global_plan_mtx.lock();
-                        self.latest_plan = plan;
-                        self.global_plan_mtx.unlock();
-                    } else |err| {
-                        std.debug.print("target error\n", .{});
-                        switch (err) {
-                            error.PATH_BLOCKED => {
-                                // log or alert failure TODO
-                                // continue planning
-                            },
-                            error.STUCK => {
-                                request_recovery();
-                            },
-                            error.INVALID_GOAL => {
-                                // log or alert failure TODO
-                                self.status.store(.WAITING, .release);
-                            },
-                        }
-                    }
-                } else |err| {
-                    std.debug.print("can't get the global costmap: {s}\n", .{@errorName(err)});
+            const plan_ptr: ?*Plan = self.global_planner.get_path(costmap, pose, target.?.*) catch |err| {
+                std.debug.print("target error\n", .{});
+                switch (err) {
+                    error.PATH_BLOCKED => {
+                        // log or alert failure TODO
+                        // continue planning
+                    },
+                    error.STUCK => {
+                        request_recovery();
+                    },
+                    error.INVALID_GOAL => {
+                        // log or alert failure TODO
+                        self.status.store(.WAITING, .release);
+                    },
                 }
+                continue;
+            };
 
-                if (self.status.load(.acquire) == .RUNNING) {
-                    std.debug.print("sleeping for the next global plan\n", .{});
-                    rate.sleep();
-                }
+            std.debug.print("path acquired\n", .{});
+
+            const old_plan = self.new_plan.swap(plan_ptr, .acq_rel);
+
+            if (old_plan) |p| {
+                self.allocator.destroy(p); // won't work TODO
             }
         }
     }
 
-    pub fn set_target(self: *Navigation, target: ?Pose) void {
-        self.status.store(.WAITING, .release);
-
-        self.global_plan_loop_mtx.lock();
-        self.target = target;
-        self.global_plan_loop_cond.signal();
-        self.global_plan_loop_mtx.unlock();
+    pub fn set_target(self: *Navigation, target: ?*Pose) void {
+        if (self.new_target.swap(target, .acq_rel)) |t| self.allocator.destroy(t);
+        self.status.store(.RUNNING, .release);
     }
 
     pub fn abort(self: *Navigation) void {
-        self.set_target(null);
+        self.status.store(.WAITING, .release);
+        if (self.new_target.swap(null, .acq_rel)) |t| self.allocator.destroy(t);
+    }
+
+    pub fn cancel(self: *Navigation) void {
+        self.status.store(.STOPPED, .release);
     }
 
     // fn global_planner_step(self: *Navigation, goal: Pose) void {

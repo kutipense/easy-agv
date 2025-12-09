@@ -7,6 +7,8 @@ const Rate = @import("utils/rate.zig").Rate;
 
 const navigation = @import("navigation/navigation.zig");
 
+const geometry_types = @import("types/geometry.zig");
+
 const html_file = @embedFile("gui/html/index.html");
 
 fn close_window(e: *webui.Event) void {
@@ -51,7 +53,9 @@ export fn add(a: i32, b: i32) i32 {
 }
 
 pub fn main() !void {
-    var nav = navigation.Navigation.init();
+    var gpa = std.heap.DebugAllocator(.{ .thread_safe = true }).init;
+    var allocator = gpa.allocator();
+    var nav = navigation.Navigation.init(allocator);
 
     try nav.start();
 
@@ -73,13 +77,21 @@ pub fn main() !void {
 
     std.Thread.sleep(std.time.ns_per_s * 1.5);
 
-    nav.set_target(.Zero());
+    var pose0: ?*geometry_types.Pose = try allocator.create(geometry_types.Pose);
+    pose0.?.* = geometry_types.Pose.Zero();
+
+    nav.set_target(pose0);
 
     std.Thread.sleep(std.time.ns_per_s * 5);
     nav.abort();
 
+    pose0 = try allocator.create(geometry_types.Pose);
+    pose0.?.* = geometry_types.Pose.Zero();
+
     std.Thread.sleep(std.time.ns_per_s * 5);
-    nav.set_target(.Zero());
+
+    nav.cancel();
+    // nav.set_target(pose0);
 
     nav.global_plan_thread.?.join();
     // rate.sleep();

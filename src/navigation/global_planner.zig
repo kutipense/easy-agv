@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const geometry_types = @import("../types/geometry.zig");
 const map_types = @import("../types/map.zig");
 const navigation_types = @import("types.zig");
@@ -12,8 +14,10 @@ const Pose = geometry_types.Pose;
 const Plan = navigation_types.Plan;
 
 pub const GlobalPlanner = struct {
-    pub fn init() GlobalPlanner {
-        return .{};
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) GlobalPlanner {
+        return .{ .allocator = allocator };
     }
 
     pub fn get_path(
@@ -21,18 +25,18 @@ pub const GlobalPlanner = struct {
         costmap: Map2D(u8),
         start_pose: Pose,
         end_pose: Pose,
-    ) NavigationError!Plan {
+    ) NavigationError!*Plan {
         _ = start_pose;
         _ = end_pose;
         _ = costmap;
-        _ = self;
 
-        const vec: [1]geometry_types.Vec3(f32) = .{
-            .{ .x = 0.0, .y = 0.0, .z = 0.0 },
-        };
+        // const vec: [1]geometry_types.Vec3(f32) = .{
+        //     .{ .x = 0.0, .y = 0.0, .z = 0.0 },
+        // };
 
-        const max_vel: [1]f32 = .{0};
+        // const max_vel: [1]f32 = .{0};
 
-        return Plan{ .length_m = 0, .max_vel = &max_vel, .path = &vec };
+        return self.allocator.create(Plan) catch unreachable; // TODO
+        // return Plan{ .length_m = 0, .max_vel = &max_vel, .path = &vec };
     }
 };
