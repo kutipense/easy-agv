@@ -74,7 +74,7 @@ pub const Navigation = struct {
         self.global_plan_thread = try std.Thread.spawn(.{}, Navigation.global_loop, .{self});
     }
 
-    pub fn deinit(self: *Navigation) void {
+    pub fn stop(self: *Navigation) void {
         self.status.store(.STOPPED, .release);
         if (self.global_plan_thread) |t| t.join();
     }
@@ -138,13 +138,9 @@ pub const Navigation = struct {
         self.status.store(.RUNNING, .release);
     }
 
-    pub fn abort(self: *Navigation) void {
+    pub fn abort_target(self: *Navigation) void {
         self.status.store(.WAITING, .release);
         if (self.new_target.swap(null, .acq_rel)) |t| self.allocator.destroy(t);
-    }
-
-    pub fn cancel(self: *Navigation) void {
-        self.status.store(.STOPPED, .release);
     }
 
     // fn global_planner_step(self: *Navigation, goal: Pose) void {

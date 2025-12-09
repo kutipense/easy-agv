@@ -58,7 +58,7 @@ pub fn main() !void {
     var nav = navigation.Navigation.init(allocator);
 
     try nav.start();
-    defer nav.deinit();
+    defer nav.stop();
 
     // var loop = try xev.Loop.init(.{});
     // defer loop.deinit();
@@ -84,7 +84,7 @@ pub fn main() !void {
     nav.set_target(pose0);
 
     std.Thread.sleep(std.time.ns_per_s * 5);
-    nav.abort();
+    nav.abort_target();
 
     pose0 = try allocator.create(geometry_types.Pose);
     pose0.?.* = geometry_types.Pose.Zero();
