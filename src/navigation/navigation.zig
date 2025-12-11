@@ -6,7 +6,6 @@ const navigation_types = @import("types.zig");
 
 const LocalPlanner = @import("local_planner.zig").LocalPlanner;
 const GlobalPlanner = @import("global_planner.zig").GlobalPlanner;
-const Costmap = @import("costmap.zig").Costmap;
 
 const Rate = @import("../utils/rate.zig").Rate;
 
@@ -40,7 +39,6 @@ pub const Navigation = struct {
 
     allocator: std.mem.Allocator,
 
-    costmap: Costmap,
     localization: Localization,
     global_planner: GlobalPlanner,
     local_planner: LocalPlanner,
@@ -55,7 +53,6 @@ pub const Navigation = struct {
         return .{
             .allocator = allocator,
 
-            .costmap = Costmap.init(),
             .localization = Localization.init(),
             .global_planner = GlobalPlanner.init(allocator),
             .local_planner = LocalPlanner.init(),
@@ -98,6 +95,8 @@ pub const Navigation = struct {
                 std.debug.print("new target acquired\n", .{});
             }
 
+            if (target == null) continue; // in any case
+
             const plan_ptr = self.global_planner.plan(target.?) catch |err| {
                 std.debug.print("target error\n", .{});
                 switch (err) {
@@ -118,11 +117,14 @@ pub const Navigation = struct {
                         // log or alert failure TODO
                         self.status.store(.WAITING, .release);
                     },
+                    // else => {
+                    //     // log or alert failure TODO},
+                    // },
                 }
                 continue;
             };
 
-            std.debug.print("path acquired\n", .{});
+            std.debug.print("plan acquired\n", .{});
             if (self.new_plan.swap(plan_ptr, .acq_rel)) |p| {
                 self.allocator.destroy(p); // won't work TODO
             }

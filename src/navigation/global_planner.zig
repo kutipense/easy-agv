@@ -20,7 +20,7 @@ const Localization = struct {
         return .{};
     }
 
-    pub fn get_pose(self: *Localization) Pose {
+    pub fn get_pose(self: *Localization) !Pose {
         _ = self;
         return Pose.Zero();
     }
