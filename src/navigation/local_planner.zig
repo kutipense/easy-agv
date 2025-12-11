@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const geometry_types = @import("../types/geometry.zig");
 const map_types = @import("../types/map.zig");
 const navigation_types = @import("types.zig");
@@ -25,6 +27,8 @@ const Localization = struct {
 };
 
 pub const LocalPlanner = struct {
+    allocator: std.mem.Allocator,
+
     plan: *Plan,
     tolerance_m: f32,
     tolerance_rad: f32,
@@ -32,15 +36,22 @@ pub const LocalPlanner = struct {
     costmap: Costmap,
     localization: Localization,
 
-    pub fn init() LocalPlanner {
+    pub fn init(allocator: std.mem.Allocator) LocalPlanner {
         return .{
-            .goal = null,
+            .allocator = allocator,
+
+            .plan = null,
             .tolerance_m = 0.1,
             .tolerance_rad = 0.1,
 
             .costmap = Costmap.init(),
             .localization = Localization.init(),
         };
+    }
+
+    pub fn set_plan(self: *LocalPlanner, new_plan: *Plan) void {
+        if (self.plan) |p| self.allocator.destroy(p); // won't work TODO
+        self.plan = new_plan;
     }
 
     pub fn step(self: *LocalPlanner, pose: Pose) PlannerError!VelocityCommand {
@@ -51,7 +62,7 @@ pub const LocalPlanner = struct {
         return .CostmapError;
     }
 
-    pub fn is_goal_reached(self: *LocalPlanner) PlannerError!GoalReached {
+    pub fn is_done(self: *LocalPlanner) PlannerError!GoalReached {
         const pose = self.localization.get_pose() catch return .LocalizationError;
         return self.plan.target.is_close(pose, self.tolerance_m, self.tolerance_rad);
     }
