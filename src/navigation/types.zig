@@ -1,9 +1,12 @@
 const geometry_types = @import("../types/geometry.zig");
 
-pub const NavigationError = error{
-    PATH_BLOCKED,
-    STUCK,
-    INVALID_GOAL,
+pub const PlannerError = error{
+    CostmapError,
+    LocalizationError,
+
+    PathBlocked,
+    Stuck,
+    InvalidGoal,
 };
 
 pub const Path = struct {

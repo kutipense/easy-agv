@@ -10,6 +10,8 @@ const Costmap = @import("costmap.zig").Costmap;
 
 const Rate = @import("../utils/rate.zig").Rate;
 
+const PlannerError = navigation_types.PlannerError;
+
 const Pose = geometry_types.Pose;
 const Map2D = map_types.Map2D;
 const Plan = navigation_types.Plan;
@@ -96,25 +98,23 @@ pub const Navigation = struct {
                 std.debug.print("new target acquired\n", .{});
             }
 
-            const costmap = self.costmap.global_costmap() catch |err| {
-                std.debug.print("can't get the global costmap: {s}\n", .{@errorName(err)});
-                continue;
-            };
-
-            std.debug.print("costmap acquired\n", .{});
-            const pose = self.localization.get_pose();
-
-            const plan_ptr: ?*Plan = self.global_planner.get_path(costmap, pose, target.?) catch |err| {
+            const plan_ptr = self.global_planner.plan(target.?) catch |err| {
                 std.debug.print("target error\n", .{});
                 switch (err) {
-                    error.PATH_BLOCKED => {
+                    PlannerError.CostmapError => {
+                        // log or alert failure TODO
+                    },
+                    PlannerError.LocalizationError => {
+                        // log or alert failure TODO
+                    },
+                    PlannerError.PathBlocked => {
                         // log or alert failure TODO
                         // continue planning
                     },
-                    error.STUCK => {
+                    PlannerError.Stuck => {
                         request_recovery();
                     },
-                    error.INVALID_GOAL => {
+                    PlannerError.InvalidGoal => {
                         // log or alert failure TODO
                         self.status.store(.WAITING, .release);
                     },
@@ -123,10 +123,7 @@ pub const Navigation = struct {
             };
 
             std.debug.print("path acquired\n", .{});
-
-            const old_plan = self.new_plan.swap(plan_ptr, .acq_rel);
-
-            if (old_plan) |p| {
+            if (self.new_plan.swap(plan_ptr, .acq_rel)) |p| {
                 self.allocator.destroy(p); // won't work TODO
             }
         }
