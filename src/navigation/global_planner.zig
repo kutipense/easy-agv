@@ -42,7 +42,7 @@ pub const GlobalPlanner = struct {
     }
 
     pub fn plan(self: *GlobalPlanner, target: Pose) PlannerError!*Plan {
-        const costmap = self.costmap.global_costmap() catch return .CostmapError;
+        const costmap = self.costmap.get_costmap() catch return .CostmapError;
         const pose = self.localization.get_pose() catch return .LocalizationError;
 
         // const vec: [1]geometry_types.Vec3(f32) = .{

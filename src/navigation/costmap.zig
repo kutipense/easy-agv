@@ -6,12 +6,7 @@ pub const Costmap = struct {
         return .{};
     }
 
-    pub fn local_costmap(self: *Costmap) !Map2D(u8) {
-        _ = self;
-        return error.NotImplemented;
-    }
-
-    pub fn global_costmap(self: *Costmap) !Map2D(u8) {
+    pub fn get_costmap(self: *Costmap) !Map2D(u8) {
         _ = self;
 
         return .{
