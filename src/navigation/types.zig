@@ -10,7 +10,7 @@ pub const PlannerError = error{
 };
 
 pub const Path = struct {
-    path: []const geometry_types.Vec3(f32),
+    path: []const geometry_types.Vec3,
     target: geometry_types.Pose,
     length_m: f32,
     max_vel: []const f32,
@@ -24,6 +24,6 @@ pub const GoalReached = struct {
 };
 
 pub const VelocityCommand = struct {
-    linear: geometry_types.Vec3(f32),
-    angular: geometry_types.Vec3(f32),
+    linear: geometry_types.Vec3,
+    angular: geometry_types.Vec3,
 };

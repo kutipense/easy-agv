@@ -32,6 +32,10 @@ pub const LocalPlanner = struct {
     plan: *Plan,
     tolerance_m: f32,
     tolerance_rad: f32,
+    lookahed_dist: f32,
+
+    linear_vel: f32,
+    angular_vel: f32,
 
     costmap: Costmap,
     localization: Localization,
@@ -43,6 +47,9 @@ pub const LocalPlanner = struct {
             .plan = null,
             .tolerance_m = 0.1,
             .tolerance_rad = 0.1,
+            .lookahed_dist = 1.0,
+            .linear_vel = 1.0,
+            .angular_vel = 1.0,
 
             .costmap = Costmap.init(),
             .localization = Localization.init(),
@@ -56,14 +63,27 @@ pub const LocalPlanner = struct {
 
     pub fn step(self: *LocalPlanner, pose: Pose) PlannerError!VelocityCommand {
         const costmap = self.costmap.get_costmap() catch return .CostmapError;
-        _ = pose;
         _ = costmap;
 
-        return .CostmapError;
+        const lp = get_lookahead_point(self.plan.*, self.lookahed_dist);
+        const alpha = 2 * std.math.acos(@abs(pose.orientation.dot(lp.orientation)));
+        const curvature = 2 * std.math.sin(alpha) / self.lookahed_dist / self.lookahed_dist;
+
+        // make linear gain TODO
+        const angular_vel = std.math.clamp(curvature * self.linear_vel, -self.angular_vel, self.angular_vel);
+
+        return .{ .linear = geometry_types.Vec3.new(self.linear_vel, 0, 0), .angular = geometry_types.Vec3.new(0, 0, angular_vel) };
     }
 
     pub fn is_done(self: *LocalPlanner) PlannerError!GoalReached {
         const pose = self.localization.get_pose() catch return .LocalizationError;
         return self.plan.target.is_close(pose, self.tolerance_m, self.tolerance_rad);
+    }
+
+    pub fn get_lookahead_point(plan: Plan, ld: f32) Pose {
+        _ = plan;
+        _ = ld;
+
+        return Pose.Zero();
     }
 };
