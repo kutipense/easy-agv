@@ -86,4 +86,14 @@ pub const LocalPlanner = struct {
 
         return Pose.Zero();
     }
+
+    pub fn check_collision(self: *LocalPlanner, pose: Pose) bool {
+        const costmap = self.costmap.get_costmap();
+
+        // costmap.data[...]
+        _ = pose;
+        _ = costmap;
+
+        return false;
+    }
 };
